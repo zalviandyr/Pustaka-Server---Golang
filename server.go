@@ -11,7 +11,6 @@ import (
 )
 
 var db *sql.DB
-var err error
 
 // Buku struct
 type Buku struct {
@@ -58,8 +57,8 @@ func getAllBuku(w http.ResponseWriter, r *http.Request) {
 		}()
 
 		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			response.StatusCode = http.StatusNotFound
+			w.WriteHeader(http.StatusInternalServerError)
+			response.StatusCode = http.StatusInternalServerError
 			response.Message = "Something wrong, i can feel"
 		} else {
 			for result.Next() {
@@ -106,8 +105,8 @@ func getBuku(w http.ResponseWriter, r *http.Request) {
 		}()
 
 		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			response.StatusCode = http.StatusNotFound
+			w.WriteHeader(http.StatusInternalServerError)
+			response.StatusCode = http.StatusInternalServerError
 			response.Message = "Something wrong, i can feel"
 		} else {
 			for result.Next() {
@@ -134,6 +133,8 @@ func createBuku(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if r.Method == "POST" {
+		var response Response
+
 		isbn := r.FormValue("isbn")
 		judul := r.FormValue("judul")
 		penulis := r.FormValue("penulis")
@@ -142,17 +143,23 @@ func createBuku(w http.ResponseWriter, r *http.Request) {
 		cover := r.FormValue("cover")
 
 		stmt, err := db.Prepare("INSERT INTO buku (isbn, judul, penulis, penerbit, tahun_terbit, cover) values (?,?,?,?,?,?)")
-		_, err = stmt.Exec(isbn, judul, penulis, penerbit, tahunTerbit, cover)
 
-		var response Response
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			response.StatusCode = http.StatusBadRequest
-			response.Message = "Data duplicate"
+			w.WriteHeader(http.StatusInternalServerError)
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Something wrong, i can feel"
 		} else {
-			w.WriteHeader(http.StatusCreated)
-			response.StatusCode = http.StatusCreated
-			response.Message = "Data created"
+			_, err := stmt.Exec(isbn, judul, penulis, penerbit, tahunTerbit, cover)
+
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				response.StatusCode = http.StatusBadRequest
+				response.Message = "Data duplicated"
+			} else {
+				w.WriteHeader(http.StatusCreated)
+				response.StatusCode = http.StatusCreated
+				response.Message = "Data created"
+			}
 		}
 
 		resultJSON, _ := json.Marshal(response)
@@ -226,6 +233,7 @@ func deleteBuku(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	// init database
+	var err error
 	db, err = sql.Open("mysql", "root@tcp(127.0.0.1:3306)/pustaka")
 	if err != nil {
 		// panic func adalah untuk membuat program keluar langsung
