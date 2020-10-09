@@ -171,6 +171,7 @@ func updateBuku(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if r.Method == "PUT" {
+		var response Response
 		params := mux.Vars(r)
 
 		judul := r.FormValue("judul")
@@ -179,25 +180,31 @@ func updateBuku(w http.ResponseWriter, r *http.Request) {
 		tahunTerbit := r.FormValue("tahun_terbit")
 		cover := r.FormValue("cover")
 
-		stmt, _ := db.Prepare(`UPDATE buku SET 
+		stmt, err := db.Prepare(`UPDATE buku SET 
 		judul = ?, 
 		penulis = ?,
 		penerbit = ?,
 		tahun_terbit = ?,
 		cover = ?
 		WHERE isbn = ?`)
-		result, _ := stmt.Exec(judul, penulis, penerbit, tahunTerbit, cover, params["id"])
-		rowAffect, _ := result.RowsAffected()
 
-		var response Response
-		if rowAffect == 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			response.StatusCode = http.StatusBadRequest
-			response.Message = "Data not found or has been updated"
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Something wrong, i can feel"
 		} else {
-			w.WriteHeader(http.StatusOK)
-			response.StatusCode = http.StatusOK
-			response.Message = "Data success update"
+			result, _ := stmt.Exec(judul, penulis, penerbit, tahunTerbit, cover, params["id"])
+			rowAffect, _ := result.RowsAffected()
+
+			if rowAffect == 0 {
+				w.WriteHeader(http.StatusBadRequest)
+				response.StatusCode = http.StatusBadRequest
+				response.Message = "Data not found or has been updated"
+			} else {
+				w.WriteHeader(http.StatusOK)
+				response.StatusCode = http.StatusOK
+				response.Message = "Data success update"
+			}
 		}
 
 		resultJSON, _ := json.Marshal(response)
@@ -209,21 +216,28 @@ func deleteBuku(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if r.Method == "DELETE" {
+		var response Response
 		params := mux.Vars(r)
 
-		stmt, _ := db.Prepare("DELETE FROM buku WHERE isbn = ?")
-		result, _ := stmt.Exec(params["id"])
-		rowAffect, _ := result.RowsAffected()
+		stmt, err := db.Prepare("DELETE FROM buku WHERE isbn = ?")
 
-		var response Response
-		if rowAffect == 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			response.StatusCode = http.StatusBadRequest
-			response.Message = "Data not found"
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			response.StatusCode = http.StatusInternalServerError
+			response.Message = "Something wrong, i can feel"
 		} else {
-			w.WriteHeader(http.StatusOK)
-			response.StatusCode = http.StatusOK
-			response.Message = "Data success delete"
+			result, _ := stmt.Exec(params["id"])
+			rowAffect, _ := result.RowsAffected()
+
+			if rowAffect == 0 {
+				w.WriteHeader(http.StatusBadRequest)
+				response.StatusCode = http.StatusBadRequest
+				response.Message = "Data not found"
+			} else {
+				w.WriteHeader(http.StatusOK)
+				response.StatusCode = http.StatusOK
+				response.Message = "Data success delete"
+			}
 		}
 
 		resultJSON, _ := json.Marshal(response)
